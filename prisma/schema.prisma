@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Bảng tài khoản quản trị hệ thống / nhân viên
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  avatar    String?
+  role      String   @default("ADMIN") // ADMIN, STAFF
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// Bảng khách hàng mua hàng (riêng biệt)
+model Customer {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String?
+  name      String
+  phone     String?
+  avatar    String?
+  address   String?
+  city      String?
+  points    Int      @default(0)
+  tier      String   @default("Đồng")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+
+  @@map("customers")
+}
+
+model Product {
+  id           String           @id
+  name         String
+  slug         String           @unique
+  category     String
+  categoryName String
+  badge        String?
+  rating       Float            @default(5.0)
+  reviewsCount Int              @default(0)
+  soldCount    Int              @default(0)
+  shortDesc    String
+  description  String
+  origin       String
+  spec         String
+  ingredients  String
+  shelfLife    String
+  featured     Boolean          @default(false)
+  inStock      Boolean          @default(true)
+  images       String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  orderItems   OrderItem[]
+  variants     ProductVariant[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id            String  @id
+  productId     String
+  weight        String
+  price         Float
+  originalPrice Float
+  inStock       Boolean @default(true)
+  image         String?
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_variants")
+}
+
+model Order {
+  id               String      @id @default(uuid())
+  orderCode        String      @unique
+  customerId       String?
+  customerName     String
+  customerPhone    String
+  customerAddress  String
+  customerCity     String
+  customerDistrict String?
+  customerNote     String?
+  subtotal         Float
+  shippingFee      Float       @default(0)
+  discount         Float       @default(0)
+  totalAmount      Float
+  paymentMethod    String      @default("cod")
+  paymentStatus    String      @default("unpaid")
+  shippingStatus   String      @default("pending")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  items            OrderItem[]
+  customer         Customer?   @relation(fields: [customerId], references: [id])
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String  @id @default(uuid())
+  orderId       String
+  productId     String
+  variantId     String
+  productName   String
+  variantWeight String
+  price         Float
+  quantity      Int     @default(1)
+  image         String?
+  product       Product @relation(fields: [productId], references: [id])
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Coupon {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  discountPercent Int
+  minOrder        Float    @default(0)
+  description     String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@map("coupons")
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}

@@ -11,11 +11,31 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
 
+const clientEnv = process.env.CLIENT_URL || '';
+const envOrigins = clientEnv ? clientEnv.split(',').map((url) => url.trim()) : [];
+
+const allowedOrigins = Array.from(
+  new Set([
+    ...envOrigins,
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://dieunha.store',
+    'https://www.dieunha.store',
+  ])
+);
+
 // Security & Utility Middlewares
 app.use(helmet());
 app.use(
   cors({
-    origin: [process.env.CLIENT_URL || 'http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: (origin, callback) => {
+      // Cho phép requests không có origin (ví dụ: mobile apps, curl, Postman) hoặc nằm trong danh sách whitelist
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked for origin: ${origin}`));
+      }
+    },
     credentials: true,
   })
 );

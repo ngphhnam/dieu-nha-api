@@ -87,72 +87,72 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
     });
 
     // Reward points if customer is logged in (1% of order value = points)
-    if (validCustomerId) {
-      const earnedPoints = Math.floor(Number(totalAmount) / 10000);
-      try {
-        await prisma.customer.update({
-          where: { id: validCustomerId },
-          data: { points: { increment: earnedPoints } },
-        });
-      } catch {}
+      if (validCustomerId) {
+        const earnedPoints = Math.floor(Number(totalAmount) / 10000);
+        try {
+          await prisma.customer.update({
+            where: { id: validCustomerId },
+            data: { points: { increment: earnedPoints } },
+          });
+        } catch { }
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Đặt hàng thành công! Điều Nhà sẽ sớm liên hệ xác nhận đơn.',
+        data: order,
+      });
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      res.status(500).json({ success: false, message: error.message });
     }
+  };
 
-    res.status(201).json({
-      success: true,
-      message: 'Đặt hàng thành công! Điều Nhà sẽ sớm liên hệ xác nhận đơn.',
-      data: order,
-    });
-  } catch (error: any) {
-    console.error('Error creating order:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+  export const getOrders = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { status, search } = req.query;
+      const where: any = {};
+      if (status && status !== 'all') {
+        where.shippingStatus = String(status);
+      }
+      if (search) {
+        where.OR = [
+          { orderCode: { contains: String(search) } },
+          { customerName: { contains: String(search) } },
+          { customerPhone: { contains: String(search) } },
+        ];
+      }
 
-export const getOrders = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { status, search } = req.query;
-    const where: any = {};
-    if (status && status !== 'all') {
-      where.shippingStatus = String(status);
+      const orders = await prisma.order.findMany({
+        where,
+        include: { items: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      res.json({ success: true, data: orders });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
     }
-    if (search) {
-      where.OR = [
-        { orderCode: { contains: String(search) } },
-        { customerName: { contains: String(search) } },
-        { customerPhone: { contains: String(search) } },
-      ];
+  };
+
+  export const updateOrderStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { shippingStatus, paymentStatus } = req.body;
+
+      const data: any = {};
+      if (shippingStatus) data.shippingStatus = shippingStatus;
+      if (paymentStatus) data.paymentStatus = paymentStatus;
+
+      const order = await prisma.order.update({
+        where: { id },
+        data,
+        include: { items: true },
+      });
+
+      res.json({ success: true, message: 'Cập nhật trạng thái đơn hàng thành công.', data: order });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
     }
-
-    const orders = await prisma.order.findMany({
-      where,
-      include: { items: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    res.json({ success: true, data: orders });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const updateOrderStatus = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { shippingStatus, paymentStatus } = req.body;
-
-    const data: any = {};
-    if (shippingStatus) data.shippingStatus = shippingStatus;
-    if (paymentStatus) data.paymentStatus = paymentStatus;
-
-    const order = await prisma.order.update({
-      where: { id },
-      data,
-      include: { items: true },
-    });
-
-    res.json({ success: true, message: 'Cập nhật trạng thái đơn hàng thành công.', data: order });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+  };
 

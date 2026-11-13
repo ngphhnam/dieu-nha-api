@@ -145,3 +145,40 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Chưa đăng nhập.' });
+      return;
+    }
+
+    const { name, phone, address, city } = req.body;
+
+    if (req.user.role === 'ADMIN') {
+      const updated = await prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+          name: name || undefined,
+          phone: phone || undefined,
+        },
+      });
+      res.json({ success: true, message: 'Cập nhật thông tin thành công.', data: updated });
+      return;
+    }
+
+    const updated = await prisma.customer.update({
+      where: { id: req.user.id },
+      data: {
+        name: name || undefined,
+        phone: phone || undefined,
+        address: address || undefined,
+        city: city || undefined,
+      },
+    });
+
+    res.json({ success: true, message: 'Cập nhật thông tin thành công.', data: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

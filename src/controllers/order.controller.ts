@@ -86,16 +86,21 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       include: { items: true },
     });
 
-    // Reward points if customer is logged in (1% of order value = points)
-      if (validCustomerId) {
-        const earnedPoints = Math.floor(Number(totalAmount) / 10000);
-        try {
-          await prisma.customer.update({
-            where: { id: validCustomerId },
-            data: { points: { increment: earnedPoints } },
-          });
-        } catch { }
-      }
+    // Reward points & update customer default address if customer is logged in
+    if (validCustomerId) {
+      const earnedPoints = Math.floor(Number(totalAmount) / 10000);
+      try {
+        await prisma.customer.update({
+          where: { id: validCustomerId },
+          data: {
+            points: { increment: earnedPoints },
+            phone: customerPhone || undefined,
+            address: customerAddress || undefined,
+            city: customerCity || undefined,
+          },
+        });
+      } catch {}
+    }
 
       res.status(201).json({
         success: true,

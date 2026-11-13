@@ -34,6 +34,25 @@ export const authenticate = async (
   }
 };
 
+export const optionalAuth = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const secret = process.env.JWT_SECRET || 'dieunha-secret';
+      const decoded = jwt.verify(token, secret) as { id: string; email: string; role: string; name: string };
+      req.user = decoded;
+    }
+  } catch (error) {
+    // Ignore error for guest users
+  }
+  next();
+};
+
 export const requireAdmin = (
   req: AuthRequest,
   res: Response,

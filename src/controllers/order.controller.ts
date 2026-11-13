@@ -17,6 +17,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       discount,
       totalAmount,
       paymentMethod,
+      paymentStatus,
     } = req.body;
 
     if (!customerName || !customerPhone || !customerAddress || !items || items.length === 0) {
@@ -24,36 +25,61 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
+    // Verify valid customer if logged in
+    let validCustomerId: string | null = null;
+    if (req.user?.id) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: req.user.id },
+      });
+      if (customer) {
+        validCustomerId = customer.id;
+      }
+    }
+
+    // Check valid productIds in DB
+    const inputProductIds = items
+      .map((i: any) => i.productId)
+      .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
+
+    const existingProducts = await prisma.product.findMany({
+      where: { id: { in: inputProductIds } },
+      select: { id: true },
+    });
+    const validProductIdSet = new Set(existingProducts.map((p) => p.id));
+
     // Generate unique order code (e.g. DH823912)
     const randomNum = Math.floor(100000 + Math.random() * 900000);
     const orderCode = `DH${randomNum}`;
 
+    const finalPaymentStatus =
+      paymentStatus || (paymentMethod === 'vietqr' ? 'paid' : 'unpaid');
+
     const order = await prisma.order.create({
       data: {
         orderCode,
-        customerId: req.user?.id || null,
+        customerId: validCustomerId,
         customerName,
         customerPhone,
         customerAddress,
         customerCity: customerCity || 'TP. Hồ Chí Minh',
-        customerDistrict,
-        customerNote,
-        subtotal: Number(subtotal),
+        customerDistrict: customerDistrict || '',
+        customerNote: customerNote || '',
+        subtotal: Number(subtotal) || 0,
         shippingFee: Number(shippingFee || 0),
         discount: Number(discount || 0),
-        totalAmount: Number(totalAmount),
+        totalAmount: Number(totalAmount) || 0,
         paymentMethod: paymentMethod || 'cod',
-        paymentStatus: paymentMethod === 'vietqr' ? 'paid' : 'unpaid',
+        paymentStatus: finalPaymentStatus,
         shippingStatus: 'pending',
         items: {
           create: items.map((item: any) => ({
-            productId: item.productId,
-            productName: item.productName,
-            variantId: item.variantId,
-            variantWeight: item.variantWeight,
-            price: Number(item.price),
+            productId: validProductIdSet.has(item.productId) ? item.productId : null,
+            variantId: item.variantId || 'standard',
+            productName: item.productName || 'Hạt Điều Nhà',
+            variantWeight: item.variantWeight || 'Hộp tiêu chuẩn',
+            price: Number(item.price || 0),
             quantity: Number(item.quantity || 1),
-            image: item.image,
+            image: item.image || null,
           })),
         },
       },
@@ -61,11 +87,11 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
     });
 
     // Reward points if customer is logged in (1% of order value = points)
-    if (req.user?.id && req.user?.role !== 'ADMIN') {
+    if (validCustomerId) {
       const earnedPoints = Math.floor(Number(totalAmount) / 10000);
       try {
         await prisma.customer.update({
-          where: { id: req.user.id },
+          where: { id: validCustomerId },
           data: { points: { increment: earnedPoints } },
         });
       } catch {}
@@ -77,6 +103,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       data: order,
     });
   } catch (error: any) {
+    console.error('Error creating order:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

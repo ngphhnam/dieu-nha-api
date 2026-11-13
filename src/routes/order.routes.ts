@@ -4,12 +4,12 @@ import {
   getOrders,
   updateOrderStatus,
 } from '../controllers/order.controller.js';
-import { authenticate, requireAdmin } from '../middlewares/auth.middleware.js';
+import { authenticate, optionalAuth, requireAdmin } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
 // Public / Authenticated customers can create order
-router.post('/', createOrder);
+router.post('/', optionalAuth, createOrder);
 
 // Admin can view and update orders
 router.get('/', authenticate, requireAdmin, getOrders);

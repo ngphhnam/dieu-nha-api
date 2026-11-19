@@ -27,7 +27,6 @@ export const apiActivityLogger = (
 
   const start = Date.now();
   const ip = getClientIp(req);
-  const userAgent = req.headers['user-agent'] || null;
   const sessionId = (req.headers['x-session-id'] as string) || `api-${ip}`;
 
   res.on('finish', () => {
@@ -45,7 +44,6 @@ export const apiActivityLogger = (
         data: {
           sessionId,
           ip,
-          userAgent,
           userId: req.user?.id || null,
           userName: req.user?.name || null,
           userEmail: req.user?.email || null,

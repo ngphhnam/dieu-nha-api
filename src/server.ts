@@ -7,6 +7,7 @@ import apiRoutes from './routes/index.js';
 import { errorHandler } from './middlewares/error.middleware.js';
 import { optionalAuth } from './middlewares/auth.middleware.js';
 import { apiActivityLogger } from './middlewares/activityLogger.middleware.js';
+import { scheduleLogCleanup } from './utils/logCleanup.js';
 
 dotenv.config();
 
@@ -60,5 +61,6 @@ app.use(errorHandler);
 app.listen(port, () => {
   console.log(`🚀 Dieu Nha Backend API server listening at http://localhost:${port}`);
   console.log(`📚 Health check endpoint: http://localhost:${port}/api/v1/health`);
+  scheduleLogCleanup();
 });
 

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../config/db.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { notifyNewOrder } from '../utils/notify.js';
 
 export const createOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -101,6 +102,9 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
         });
       } catch {}
     }
+
+    // Push thông báo về Telegram (không chờ, không làm chậm/lỗi việc đặt hàng)
+    notifyNewOrder(order).catch(() => {});
 
       res.status(201).json({
         success: true,

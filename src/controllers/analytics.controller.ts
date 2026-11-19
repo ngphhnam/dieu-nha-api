@@ -99,7 +99,6 @@ export const trackEvents = async (req: AuthRequest, res: Response): Promise<void
     const logsData = cappedEvents.map((ev) => ({
       sessionId,
       ip,
-      userAgent: userAgent?.slice(0, 500) || null,
       userId,
       userName,
       userEmail,

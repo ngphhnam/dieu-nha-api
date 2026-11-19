@@ -142,3 +142,53 @@ model SiteSetting {
 
   @@map("site_settings")
 }
+
+// Bảng theo dõi phiên truy cập & người dùng online
+model VisitorSession {
+  id          String   @id @default(uuid())
+  sessionId   String   @unique
+  ip          String
+  userAgent   String?
+  device      String?
+  browser     String?
+  os          String?
+  userId      String?
+  userName    String?
+  userEmail   String?
+  firstPath   String   @default("/")
+  lastPath    String   @default("/")
+  referrer    String?
+  pageViews   Int      @default(1)
+  eventsCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@index([lastSeenAt])
+  @@index([createdAt])
+  @@index([ip])
+  @@map("visitor_sessions")
+}
+
+// Bảng nhật ký toàn bộ thao tác & truy cập trên hệ thống
+model ActivityLog {
+  id        String   @id @default(uuid())
+  sessionId String
+  ip        String
+  userAgent String?
+  userId    String?
+  userName  String?
+  userEmail String?
+  action    String
+  category  String   @default("interaction") // navigation, interaction, commerce, auth, system
+  target    String?
+  path      String   @default("/")
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([category])
+  @@index([ip])
+  @@index([sessionId])
+  @@map("activity_logs")
+}

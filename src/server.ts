@@ -5,10 +5,13 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import apiRoutes from './routes/index.js';
 import { errorHandler } from './middlewares/error.middleware.js';
+import { optionalAuth } from './middlewares/auth.middleware.js';
+import { apiActivityLogger } from './middlewares/activityLogger.middleware.js';
 
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', true);
 const port = process.env.PORT || 5000;
 
 const clientEnv = process.env.CLIENT_URL || '';
@@ -44,7 +47,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Main API Route
-app.use('/api/v1', apiRoutes);
+app.use('/api/v1', optionalAuth, apiActivityLogger, apiRoutes);
 
 // Root fallback
 app.get('/', (req, res) => {

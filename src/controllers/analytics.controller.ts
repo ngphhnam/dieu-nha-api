@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import prisma from '../config/db.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
-import { getClientIp, parseUserAgent } from '../utils/ip.js';
+import { getClientIp, lookupIpLocation, parseUserAgent } from '../utils/ip.js';
 
 const ONLINE_WINDOW_MS = 2 * 60 * 1000; // 2 phút
 
@@ -28,8 +28,10 @@ export const trackEvents = async (req: AuthRequest, res: Response): Promise<void
   try {
     const body = req.body || {};
     const ip = getClientIp(req);
-    const userAgent = req.headers['user-agent'] || undefined;
+    const userAgent =
+      (req.headers['x-client-agent'] as string) || req.headers['user-agent'] || undefined;
     const { device, browser, os } = parseUserAgent(userAgent);
+    const location = await lookupIpLocation(ip);
 
     const sessionId: string =
       (typeof body.sessionId === 'string' && body.sessionId.trim()) ||
@@ -69,6 +71,7 @@ export const trackEvents = async (req: AuthRequest, res: Response): Promise<void
       create: {
         sessionId,
         ip,
+        location,
         userAgent: userAgent?.slice(0, 500) || null,
         device,
         browser,
@@ -85,6 +88,7 @@ export const trackEvents = async (req: AuthRequest, res: Response): Promise<void
       },
       update: {
         ip,
+        ...(location ? { location } : {}),
         lastSeenAt: now,
         lastPath: String(lastPath).slice(0, 300),
         pageViews: pageViewCount > 0 ? { increment: pageViewCount } : undefined,
@@ -99,6 +103,7 @@ export const trackEvents = async (req: AuthRequest, res: Response): Promise<void
     const logsData = cappedEvents.map((ev) => ({
       sessionId,
       ip,
+      location,
       userId,
       userName,
       userEmail,
@@ -132,8 +137,10 @@ export const heartbeat = async (req: AuthRequest, res: Response): Promise<void> 
   try {
     const body = req.body || {};
     const ip = getClientIp(req);
-    const userAgent = req.headers['user-agent'] || undefined;
+    const userAgent =
+      (req.headers['x-client-agent'] as string) || req.headers['user-agent'] || undefined;
     const { device, browser, os } = parseUserAgent(userAgent);
+    const location = await lookupIpLocation(ip);
 
     const sessionId: string =
       (typeof body.sessionId === 'string' && body.sessionId.trim()) ||
@@ -151,6 +158,7 @@ export const heartbeat = async (req: AuthRequest, res: Response): Promise<void> 
       create: {
         sessionId,
         ip,
+        location,
         userAgent: userAgent?.slice(0, 500) || null,
         device,
         browser,
@@ -166,6 +174,7 @@ export const heartbeat = async (req: AuthRequest, res: Response): Promise<void> 
       },
       update: {
         ip,
+        ...(location ? { location } : {}),
         lastSeenAt: now,
         lastPath: path,
         ...(userId ? { userId } : {}),
@@ -359,6 +368,7 @@ export const getActivityLogs = async (req: AuthRequest, res: Response): Promise<
     if (search) {
       where.OR = [
         { ip: { contains: search, mode: 'insensitive' } },
+        { location: { contains: search, mode: 'insensitive' } },
         { action: { contains: search, mode: 'insensitive' } },
         { target: { contains: search, mode: 'insensitive' } },
         { path: { contains: search, mode: 'insensitive' } },
@@ -415,6 +425,7 @@ export const getVisitorSessions = async (req: AuthRequest, res: Response): Promi
     if (search) {
       where.OR = [
         { ip: { contains: search, mode: 'insensitive' } },
+        { location: { contains: search, mode: 'insensitive' } },
         { userName: { contains: search, mode: 'insensitive' } },
         { userEmail: { contains: search, mode: 'insensitive' } },
         { lastPath: { contains: search, mode: 'insensitive' } },

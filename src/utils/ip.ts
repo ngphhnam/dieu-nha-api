@@ -30,6 +30,71 @@ function normalizeIp(ip: string): string {
   return ip;
 }
 
+function isPrivateIp(ip: string): boolean {
+  if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip === 'localhost') return true;
+  if (ip.startsWith('10.') || ip.startsWith('192.168.')) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)) return true;
+  if (ip.startsWith('fc') || ip.startsWith('fd') || ip.startsWith('fe80:')) return true;
+  return false;
+}
+
+// Cache vị trí theo IP trong 24h (giới hạn 5000 IP) để không gọi API ngoài lặp lại
+const geoCache = new Map<string, { value: string | null; expiresAt: number }>();
+const GEO_TTL_MS = 24 * 60 * 60 * 1000;
+
+export async function lookupIpLocation(ip: string): Promise<string | null> {
+  if (isPrivateIp(ip)) return 'Local';
+
+  const cached = geoCache.get(ip);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
+  let location: string | null = null;
+  try {
+    const res = await fetch(
+      `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,regionName,city&lang=vi`,
+      { signal: AbortSignal.timeout(2500) }
+    );
+    if (res.ok) {
+      const data: any = await res.json();
+      if (data?.status === 'success') {
+        const parts = [data.city, data.regionName, data.country]
+          .map((s) => (typeof s === 'string' ? s.trim() : ''))
+          .filter(Boolean);
+        // Loại bỏ phần trùng nhau (ví dụ city === regionName)
+        const uniqueParts = Array.from(new Set(parts));
+        if (uniqueParts.length > 0) {
+          location = uniqueParts.slice(0, 2).join(', ');
+        }
+      }
+    }
+  } catch {
+    // Fallback ipwho.is nếu ip-api timeout
+    try {
+      const res2 = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+        signal: AbortSignal.timeout(2500),
+      });
+      if (res2.ok) {
+        const data2: any = await res2.json();
+        if (data2?.success) {
+          const parts = [data2.city, data2.country].filter(Boolean);
+          if (parts.length > 0) location = parts.join(', ');
+        }
+      }
+    } catch {
+      // Bỏ qua nếu mạng lỗi
+    }
+  }
+
+  if (geoCache.size > 5000) {
+    const firstKey = geoCache.keys().next().value;
+    if (firstKey) geoCache.delete(firstKey);
+  }
+  geoCache.set(ip, { value: location, expiresAt: Date.now() + GEO_TTL_MS });
+  return location;
+}
+
 export function parseUserAgent(ua: string | undefined): {
   device: string;
   browser: string;
@@ -40,6 +105,12 @@ export function parseUserAgent(ua: string | undefined): {
   }
 
   const lower = ua.toLowerCase();
+
+  // Nhận diện App Mobile DieuNhaAdmin
+  if (lower.includes('dieunhaadmin')) {
+    const os = lower.includes('ios') ? 'iOS' : lower.includes('android') ? 'Android' : 'Mobile';
+    return { device: 'Mobile App', browser: 'DieuNha App', os };
+  }
 
   let device = 'Desktop';
   if (/bot|crawler|spider|slurp|googlebot|bingbot/i.test(ua)) {

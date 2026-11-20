@@ -148,6 +148,7 @@ model VisitorSession {
   id          String   @id @default(uuid())
   sessionId   String   @unique
   ip          String
+  location    String?
   userAgent   String?
   device      String?
   browser     String?
@@ -174,6 +175,7 @@ model ActivityLog {
   id        String   @id @default(uuid())
   sessionId String
   ip        String
+  location  String?
   userAgent String?
   userId    String?
   userName  String?

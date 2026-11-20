@@ -156,8 +156,10 @@ async function sendFcmNewOrder(order: OrderForNotify): Promise<void> {
       android: {
         priority: 'high',
         notification: {
-          channelId: 'orders',
+          channelId: 'orders_high',
           sound: 'default',
+          priority: 'max',
+          visibility: 'public',
         },
       },
     });

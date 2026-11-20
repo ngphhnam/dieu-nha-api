@@ -192,3 +192,16 @@ model ActivityLog {
   @@index([sessionId])
   @@map("activity_logs")
 }
+
+// Bảng lưu FCM device token của Admin để nhận Push Notification khi có đơn hàng mới
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String   @default("android")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("device_tokens")
+}
